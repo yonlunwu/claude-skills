@@ -6,8 +6,8 @@
 #
 # 参数:
 #   mode          - 测试模式: parallel 或 rate
-#   api_url      - API URL
-#   model_path   - 模型路径
+#   api_url       - API URL
+#   model_path    - 模型路径
 #   tokenizer_path - Tokenizer 路径
 
 set -e
@@ -38,29 +38,21 @@ API_URL=$2
 MODEL_PATH=$3
 TOKENIZER_PATH=$4
 
-# SLA 配置：输入长度 -> p50_ttft p90_ttft upper_bound
+# SLA 配置：输入长度(token) -> p50_ttft p90_ttft p99_ttft upper_bound
+# 显示时使用 1k/2k/.../256k 标签，但实际传给 evalscope 的是 token 数。
 declare -A SLA_CONFIG
-SLA_CONFIG[1]="2 5 512"
-SLA_CONFIG[1000]="2 5 512"
-SLA_CONFIG[2]="2 5 512"
-SLA_CONFIG[2000]="2 5 512"
-SLA_CONFIG[4]="2 5 512"
-SLA_CONFIG[4000]="2 5 512"
-SLA_CONFIG[8]="2.5 5 256"
-SLA_CONFIG[8000]="2.5 5 256"
-SLA_CONFIG[16]="4 8 256"
-SLA_CONFIG[16000]="4 8 256"
-SLA_CONFIG[32]="4 8 128"
-SLA_CONFIG[32000]="4 8 128"
-SLA_CONFIG[64]="8 15 128"
-SLA_CONFIG[64000]="8 15 128"
-SLA_CONFIG[128]="15 35 64"
-SLA_CONFIG[128000]="15 35 64"
-SLA_CONFIG[256]="30 70 32"
-SLA_CONFIG[256000]="30 70 32"
+SLA_CONFIG[1000]="2 5 10 512"
+SLA_CONFIG[2000]="2 5 10 512"
+SLA_CONFIG[4000]="2 5 10 512"
+SLA_CONFIG[8000]="2.5 5 12 256"
+SLA_CONFIG[16000]="4 8 18 256"
+SLA_CONFIG[32000]="4 8 25 128"
+SLA_CONFIG[64000]="8 15 35 128"
+SLA_CONFIG[128000]="15 35 70 64"
+SLA_CONFIG[256000]="30 70 140 32"
 
-# 所有测试场景
-SCENARIOS="1 2 4 8 16 32 64 128 256"
+# 所有测试场景，单位为 token
+SCENARIOS="1000 2000 4000 8000 16000 32000 64000 128000 256000"
 
 # 设置变量名
 if [ "$MODE" == "parallel" ]; then
@@ -98,15 +90,19 @@ for input_tokens in $SCENARIOS; do
         continue
     fi
 
-    read p50_ttft p90_ttft upper <<< "$SLA_PARAMS"
+    read p50_ttft p90_ttft p99_ttft upper <<< "$SLA_PARAMS"
+    if [ "$input_tokens" -ge 1000 ] && [ $((input_tokens % 1000)) -eq 0 ]; then
+        display_input="$((input_tokens / 1000))k"
+    else
+        display_input="$input_tokens"
+    fi
 
     echo ""
     echo "=========================================="
-    echo "测试场景: ${input_tokens}k -> ${OUTPUT}"
-    echo "SLA: p50_ttft <= ${p50_ttft}s, p90_ttft <= ${p90_ttft}s"
+    echo "测试场景: ${display_input} -> ${OUTPUT}"
+    echo "SLA: p50_ttft <= ${p50_ttft}s, p90_ttft <= ${p90_ttft}s, p99_ttft <= ${p99_ttft}s"
     echo "=========================================="
 
-    # 执行测试
     $EVALSCOPE perf \
         --model "$MODEL_PATH" \
         --url "$API_URL" \
@@ -119,15 +115,12 @@ for input_tokens in $SCENARIOS; do
         --tokenizer-path "$TOKENIZER_PATH" \
         --sla-auto-tune \
         --sla-variable "$VARIABLE" \
-        --sla-params "[{\"p50_ttft\": \"<=$p50_ttft\", \"p90_ttft\": \"<=$p90_ttft\"}]" \
+        --sla-params "[{\"p50_ttft\": \"<=$p50_ttft\", \"p90_ttft\": \"<=$p90_ttft\", \"p99_ttft\": \"<=$p99_ttft\"}]" \
         --sla-upper-bound "$upper" \
         --parallel 2
 
-    # 从输出中提取结果
-    # 这里可以添加结果提取逻辑
-
     echo ""
-    echo "场景 ${input_tokens}k 完成"
+    echo "场景 ${display_input} 完成"
 done
 
 echo ""

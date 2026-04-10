@@ -141,7 +141,7 @@ evalscope perf \
     --tokenizer-path /data/models/GLM-5.1-FP8/ \
     --sla-auto-tune \
     --sla-variable parallel \
-    --sla-params "[{\"p50_ttft\": \"<=2.5\", \"p90_ttft\": \"<=5\"}]" \
+    --sla-params "[{\"p50_ttft\": \"<=2.5\", \"p90_ttft\": \"<=5\", \"p99_ttft\": \"<=12\"}]" \
     --sla-upper-bound 256 \
     --parallel 2
 ```
@@ -161,7 +161,7 @@ evalscope perf \
     --tokenizer-path /data/models/GLM-5.1-FP8/ \
     --sla-auto-tune \
     --sla-variable rate \
-    --sla-params "[{\"p50_ttft\": \"<=2.5\", \"p90_ttft\": \"<=5\"}]" \
+    --sla-params "[{\"p50_ttft\": \"<=2.5\", \"p90_ttft\": \"<=5\", \"p99_ttft\": \"<=12\"}]" \
     --sla-upper-bound 128 \
     --parallel 2
 ```
@@ -173,15 +173,15 @@ evalscope perf \
 ### 单场景脚本 (sla-auto-tune.sh)
 测试单个输入长度的 SLA 性能，自动根据输入长度调整 SLA 阈值：
 
-| 输入长度 | p50_ttft | p90_ttft | upper_bound |
-|---------|----------|----------|-------------|
-| 1k-4k   | 2s       | 5s       | 512         |
-| 8k      | 2.5s     | 5s       | 256         |
-| 16k     | 4s       | 8s       | 256         |
-| 32k     | 4s       | 8s       | 128         |
-| 64k     | 8s       | 15s      | 128         |
-| 128k    | 15s      | 35s      | 64          |
-| 256k    | 30s      | 70s      | 32          |
+| 输入长度 | p50_ttft | p90_ttft | p99_ttft | upper_bound |
+|---------|----------|----------|----------|-------------|
+| 1k-4k   | 2s       | 5s       | 10s      | 512         |
+| 8k      | 2.5s     | 5s       | 12s      | 256         |
+| 16k     | 4s       | 8s       | 18s      | 256         |
+| 32k     | 4s       | 8s       | 25s      | 128         |
+| 64k     | 8s       | 15s      | 35s      | 128         |
+| 128k    | 15s      | 35s      | 70s      | 64          |
+| 256k    | 30s      | 70s      | 140s     | 32          |
 
 ```bash
 ./sla-auto-tune.sh <mode> <input_tokens> <api_url> <model_path> <tokenizer_path>

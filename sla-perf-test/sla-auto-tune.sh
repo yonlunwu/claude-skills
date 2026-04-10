@@ -43,36 +43,36 @@ TOKENIZER_PATH=$5
 # 根据输入长度确定 SLA 阈值和 upper bound
 get_sla_params() {
     local input=$1
-    local p50_ttft p90_ttft upper
+    local p50_ttft p90_ttft p99_ttft upper
 
     case $input in
         1|1000)
-            p50_ttft=2; p90_ttft=5; upper=512 ;;
+            p50_ttft=2; p90_ttft=5; p99_ttft=10; upper=512 ;;
         2|2000)
-            p50_ttft=2; p90_ttft=5; upper=512 ;;
+            p50_ttft=2; p90_ttft=5; p99_ttft=10; upper=512 ;;
         4|4000)
-            p50_ttft=2; p90_ttft=5; upper=512 ;;
+            p50_ttft=2; p90_ttft=5; p99_ttft=10; upper=512 ;;
         8|8000)
-            p50_ttft=2.5; p90_ttft=5; upper=256 ;;
+            p50_ttft=2.5; p90_ttft=5; p99_ttft=12; upper=256 ;;
         16|16000)
-            p50_ttft=4; p90_ttft=8; upper=256 ;;
+            p50_ttft=4; p90_ttft=8; p99_ttft=18; upper=256 ;;
         32|32000)
-            p50_ttft=4; p90_ttft=8; upper=128 ;;
+            p50_ttft=4; p90_ttft=8; p99_ttft=25; upper=128 ;;
         64|64000)
-            p50_ttft=8; p90_ttft=15; upper=128 ;;
+            p50_ttft=8; p90_ttft=15; p99_ttft=35; upper=128 ;;
         128|128000)
-            p50_ttft=15; p90_ttft=35; upper=64 ;;
+            p50_ttft=15; p90_ttft=35; p99_ttft=70; upper=64 ;;
         256|256000)
-            p50_ttft=30; p90_ttft=70; upper=32 ;;
+            p50_ttft=30; p90_ttft=70; p99_ttft=140; upper=32 ;;
         *)
-            p50_ttft=5; p90_ttft=10; upper=128 ;;
+            p50_ttft=5; p90_ttft=10; p99_ttft=20; upper=128 ;;
     esac
 
-    echo "${p50_ttft} ${p90_ttft} ${upper}"
+    echo "${p50_ttft} ${p90_ttft} ${p99_ttft} ${upper}"
 }
 
 # 解析 SLA 参数
-read p50_ttft p90_ttft upper <<< "$(get_sla_params $INPUT_TOKENS)"
+read p50_ttft p90_ttft p99_ttft upper <<< "$(get_sla_params $INPUT_TOKENS)"
 
 # 设置变量名
 if [ "$MODE" == "parallel" ]; then
@@ -90,7 +90,7 @@ echo "Output tokens: $OUTPUT"
 echo "API URL:       $API_URL"
 echo "Model:         $MODEL_PATH"
 echo "Tokenizer:     $TOKENIZER_PATH"
-echo "SLA:           p50_ttft <= ${p50_ttft}s, p90_ttft <= ${p90_ttft}s"
+echo "SLA:           p50_ttft <= ${p50_ttft}s, p90_ttft <= ${p90_ttft}s, p99_ttft <= ${p99_ttft}s"
 echo "Upper bound:   $upper"
 echo "=========================================="
 
@@ -107,7 +107,7 @@ $EVALSCOPE perf \
     --tokenizer-path "$TOKENIZER_PATH" \
     --sla-auto-tune \
     --sla-variable "$VARIABLE" \
-    --sla-params "[{\"p50_ttft\": \"<=$p50_ttft\", \"p90_ttft\": \"<=$p90_ttft\"}]" \
+    --sla-params "[{\"p50_ttft\": \"<=$p50_ttft\", \"p90_ttft\": \"<=$p90_ttft\", \"p99_ttft\": \"<=$p99_ttft\"}]" \
     --sla-upper-bound "$upper" \
     --parallel 2
 
